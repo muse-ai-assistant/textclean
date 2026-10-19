@@ -1,0 +1,13 @@
+[project]
+name = "textclean"
+version = "1.0.0"
+description = "Clean messy text copied from PDFs and web pages (Chinese-aware). Stdlib only."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+
+[project.scripts]
+textclean = "textclean:main"
+
+[build-system]
+requires = ["setuptools"]
