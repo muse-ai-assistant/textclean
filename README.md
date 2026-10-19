@@ -1,5 +1,8 @@
 # textclean 🧹
 
+> 🌐 **在线体验（手机/电脑都能用）: https://muse-ai-assistant.github.io/textclean/web/**
+> 🌐 **Try online: https://muse-ai-assistant.github.io/textclean/web/**
+
 Clean messy text copied from PDFs and web pages — Chinese-aware. Stdlib only, zero dependencies.
 
 专治从 PDF / 网页复制来的脏文本：硬换行、全半角混乱、零宽字符。纯标准库，零依赖。
