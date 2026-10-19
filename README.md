@@ -10,6 +10,10 @@ Clean messy text copied from PDFs and web pages — Chinese-aware. Stdlib only, 
 ## Install
 
 ```bash
+pip install -r requirements.txt
+```
+
+```bash
 pip install .
 # or just run it: python3 textclean.py
 ```
