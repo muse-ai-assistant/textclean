@@ -68,6 +68,10 @@ This is an English sentence broken by hyphen， and here is 3.14 with numbers。
 - **Whitespace**：连续空白压缩，首尾空行去除，多余空行合并为一段分隔
 - **Invisible chars**：去除零宽字符（`\u200b` 等）与 BOM
 
+## Web version 网页版
+
+手机电脑都能用，打开即用：[`web/index.html`](./web/)（同一套清洗规则，纯前端本地运行）。
+
 ## License
 
 MIT

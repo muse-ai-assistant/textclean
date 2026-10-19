@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>textclean · 文本清洗</title>
+<meta name="description" content="Clean messy Chinese text copied from PDFs and web pages. 专治从 PDF/网页复制来的脏文本。">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a73e8">
+<style>
+  :root { --blue:#1a73e8; --bg:#f6f8fb; --card:#fff; --txt:#202124; --muted:#5f6368; --line:#e0e3e7; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--txt); min-height:100vh; display:flex; flex-direction:column; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:12px 20px; display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:10; }
+  header .logo { font-size:22px; }
+  header h1 { font-size:17px; font-weight:700; }
+  header .sub { font-size:12px; color:var(--muted); }
+  header .spacer { flex:1; }
+  #langBtn { border:1px solid var(--line); background:#fff; border-radius:20px; padding:6px 14px; font-size:13px; cursor:pointer; color:var(--txt); }
+  #langBtn:hover { border-color:var(--blue); color:var(--blue); }
+  main { flex:1; max-width:1100px; width:100%; margin:0 auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .panes { display:grid; grid-template-columns:1fr 1fr; gap:12px; flex:1; min-height:0; }
+  .pane { background:var(--card); border:1px solid var(--line); border-radius:12px; display:flex; flex-direction:column; overflow:hidden; min-height:280px; }
+  .pane-head { padding:10px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; }
+  .pane-head .count { margin-left:auto; font-weight:400; color:var(--muted); font-size:12px; }
+  textarea { flex:1; border:0; resize:none; padding:14px; font-size:14px; line-height:1.7; font-family:inherit; outline:none; min-height:220px; background:transparent; color:var(--txt); }
+  #out { background:#fbfcfe; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:center; }
+  .btn { border:0; border-radius:24px; padding:11px 28px; font-size:15px; font-weight:600; cursor:pointer; }
+  .btn-primary { background:var(--blue); color:#fff; box-shadow:0 2px 8px rgba(26,115,232,.35); }
+  .btn-primary:hover { background:#1765cc; }
+  .btn-ghost { background:#fff; color:var(--txt); border:1px solid var(--line); }
+  .btn-ghost:hover { border-color:var(--blue); color:var(--blue); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .opts { display:flex; gap:16px; align-items:center; justify-content:center; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .opts label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .stats { background:#e8f0fe; border:1px solid #c2dbff; color:#174ea6; border-radius:10px; padding:10px 16px; font-size:13px; line-height:1.8; display:none; }
+  .stats.show { display:block; }
+  .stats b { color:#0b3d91; }
+  footer { text-align:center; padding:14px; font-size:12px; color:var(--muted); }
+  footer a { color:var(--blue); text-decoration:none; }
+  @media (max-width:720px) {
+    .panes { grid-template-columns:1fr; }
+    .pane { min-height:200px; }
+    textarea { min-height:160px; }
+    main { padding:10px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">🧹</span>
+  <div>
+    <h1 data-i18n="title">textclean · 文本清洗</h1>
+    <div class="sub" data-i18n="subtitle">专治从 PDF / 网页复制来的脏文本</div>
+  </div>
+  <span class="spacer"></span>
+  <button id="langBtn">EN</button>
+</header>
+<main>
+  <div class="panes">
+    <div class="pane">
+      <div class="pane-head"><span data-i18n="inputLabel">📥 粘贴脏文本</span><span class="count" id="inCount">0</span></div>
+      <textarea id="in" data-i18n-ph="inputPh" placeholder="把从 PDF / 网页复制来的文本粘贴到这里…"></textarea>
+    </div>
+    <div class="pane">
+      <div class="pane-head"><span data-i18n="outputLabel">📤 清洗结果</span><span class="count" id="outCount">0</span></div>
+      <textarea id="out" readonly data-i18n-ph="outputPh" placeholder="清洗后的干净文本会显示在这里…"></textarea>
+    </div>
+  </div>
+  <div class="toolbar">
+    <button class="btn btn-primary" id="cleanBtn" data-i18n="cleanBtn">✨ 清洗</button>
+    <button class="btn btn-ghost" id="copyBtn" data-i18n="copyBtn" disabled>📋 复制结果</button>
+    <button class="btn btn-ghost" id="clearBtn" data-i18n="clearBtn">🗑 清空</button>
+  </div>
+  <div class="opts">
+    <label><input type="checkbox" id="optPunct" checked> <span data-i18n="optPunct">标点全半角归一化</span></label>
+    <label><input type="checkbox" id="optStats" checked> <span data-i18n="optStats">显示清洗统计</span></label>
+  </div>
+  <div class="stats" id="stats"></div>
+</main>
+<footer>
+  <span data-i18n="footer">与 Python CLI 版共用同一套清洗规则 · 纯本地运行，不上传任何文本</span>
+  · <a href="https://github.com/muse-ai-assistant/textclean" target="_blank" rel="noopener">GitHub</a>
+</footer>
+<script>
+/* ===== textclean core (ported 1:1 from textclean.py) ===== */
+"use strict";
+
+const ZERO_WIDTH = "\u200b\u200c\u200d\u2060\u200e\u200f\ufeff";
+const HALF2FULL = [
+  [",", "\uff0c"], [";", "\uff1b"], [":", "\uff1a"], ["?", "\uff1f"],
+  ["!", "\uff01"], ["(", "\uff08"], [")", "\uff09"],
+  ["[", "\u3010"], ["]", "\u3011"],
+];
+
+function isCjk(ch) {
+  const o = ch.codePointAt(0);
+  return (
+    (0x4e00 <= o && o <= 0x9fff) ||
+    (0x3400 <= o && o <= 0x4dbf) ||
+    (0x20000 <= o && o <= 0x2a6df) ||
+    (0x3040 <= o && o <= 0x30ff) ||
+    (0xac00 <= o && o <= 0xd7af) ||
+    (0x3000 <= o && o <= 0x303f) ||
+    (0xff00 <= o && o <= 0xffef) ||
+    (0xf900 <= o && o <= 0xfaff)
+  );
+}
+
+const isAscii = (ch) => ch.codePointAt(0) < 128;
+const isAsciiLower = (ch) => isAscii(ch) && ch === ch.toLowerCase() && ch !== ch.toUpperCase();
+const isAsciiAlnum = (ch) => /[0-9A-Za-z]/.test(ch);
+const cpArr = (s) => Array.from(s);
+const cpLast = (s) => cpArr(s).pop();
+const cpFirst = (s) => cpArr(s)[0];
+
+function joinPair(buf, line, stats) {
+  const prev = cpLast(buf), nxt = cpFirst(line);
+  if (stats) stats.joins++;
+  // Hyphenated break: infor-\nmation -> information
+  if (prev === "-" && isAscii(nxt) && isAsciiLower(nxt)) {
+    return cpArr(buf).slice(0, -1).join("") + line;
+  }
+  const cjkP = isCjk(prev), cjkN = isCjk(nxt);
+  if (cjkP || cjkN) return buf + line;               // CJK join directly
+  if (isAsciiAlnum(prev) && isAsciiAlnum(nxt)) return buf + " " + line;
+  if (",;:!?".includes(prev)) return buf + " " + line;
+  if (".,;:!?%)]}".includes(nxt)) return buf + line;
+  if ("([{".includes(prev)) return buf + line;
+  return buf + " " + line;
+}
+
+function joinLines(text, stats) {
+  const paras = [];
+  let buf = "";
+  const flush = () => { if (buf) { paras.push(buf); buf = ""; } };
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) { if (stats && buf) stats.blankLines++; flush(); continue; }
+    buf = !buf ? line : joinPair(buf, line, stats);
+  }
+  flush();
+  return paras.join("\n\n");
+}
+
+function pairQuotes(text, asciiQ, openQ, closeQ, stats) {
+  const res = [];
+  let opening = true;
+  for (const ch of text) {
+    if (ch === asciiQ) {
+      res.push(opening ? openQ : closeQ);
+      opening = !opening;
+      if (stats) stats.punct++;
+    } else res.push(ch);
+  }
+  return res.join("");
+}
+
+function normalizePunct(text, stats) {
+  // Full-width alphanumerics -> half-width
+  const out = [];
+  for (const ch of text) {
+    const o = ch.codePointAt(0);
+    if ((0xff10 <= o && o <= 0xff19) || (0xff21 <= o && o <= 0xff3a) ||
+        (0xff41 <= o && o <= 0xff5a) || (0xff61 <= o && o <= 0xff7a)) {
+      out.push(String.fromCodePoint(o - 0xfee0));
+      if (stats) stats.punct++;
+    } else out.push(ch);
+  }
+  text = out.join("");
+  // Ellipsis: ... -> ……  (also …… stays ……: replace("…","……") on existing singles)
+  const beforeEll = text;
+  text = text.split("...").join("\u2026\u2026").split("\u2026").join("\u2026\u2026");
+  if (stats) {
+    const n = (beforeEll.match(/\.{3}|\u2026/g) || []).length;
+    stats.punct += n;
+  }
+  // Protect decimal points: keep the dot in 3.14
+  text = text.replace(/(?<=\d)\.(?=\d)/g, "\x00");
+  for (const [half, full] of HALF2FULL) {
+    const n = text.split(half).length - 1;
+    if (n) { text = text.split(half).join(full); if (stats) stats.punct += n; }
+  }
+  const nDots = (text.match(/\./g) || []).length;
+  text = text.split(".").join("\u3002");              // remaining half-width periods
+  if (stats) stats.punct += nDots;
+  text = text.split("\x00").join(".");
+  text = pairQuotes(text, '"', "\u201c", "\u201d", stats);
+  text = pairQuotes(text, "'", "\u2018", "\u2019", stats);
+  return text;
+}
+
+function cleanText(text, punct = true, stats = null) {
+  // 1. Strip zero-width chars / BOM
+  let zw = 0;
+  for (const z of ZERO_WIDTH) {
+    const n = text.split(z).length - 1;
+    if (n) { text = text.split(z).join(""); zw += n; }
+  }
+  if (stats) stats.zw = zw;
+  // 2. Normalize newlines
+  text = text.split("\r\n").join("\n").split("\r").join("\n");
+  // 3. Merge hard-wrapped lines
+  text = joinLines(text, stats);
+  // 4. Punctuation normalization
+  if (punct) text = normalizePunct(text, stats);
+  // 5. Compress whitespace, drop edge blank lines
+  const paras = text.split("\n\n").map((p) =>
+    p.replace(/[ \t\u00a0\u3000]+/g, " ").trim()
+  );
+  return paras.filter((p) => p).join("\n\n");
+}
+
+/* ===== i18n ===== */
+const I18N = {
+  zh: {
+    title: "textclean · 文本清洗", subtitle: "专治从 PDF / 网页复制来的脏文本",
+    inputLabel: "📥 粘贴脏文本", outputLabel: "📤 清洗结果",
+    inputPh: "把从 PDF / 网页复制来的文本粘贴到这里…",
+    outputPh: "清洗后的干净文本会显示在这里…",
+    cleanBtn: "✨ 清洗", copyBtn: "📋 复制结果", copied: "✅ 已复制", copyFail: "❌ 复制失败，请手动复制",
+    clearBtn: "🗑 清空", optPunct: "标点全半角归一化", optStats: "显示清洗统计",
+    footer: "与 Python CLI 版共用同一套清洗规则 · 纯本地运行，不上传任何文本",
+    stats: (s) => `🧹 清洗完成：合并了 <b>${s.joins}</b> 处硬换行，去除了 <b>${s.blankLines}</b> 个多余空行，` +
+      `转换了 <b>${s.punct}</b> 处标点，清除了 <b>${s.zw}</b> 个不可见字符。`,
+  },
+  en: {
+    title: "textclean · Text Cleaner", subtitle: "Fix messy text copied from PDFs / web pages",
+    inputLabel: "📥 Paste messy text", outputLabel: "📤 Cleaned result",
+    inputPh: "Paste text copied from a PDF / web page here…",
+    outputPh: "Cleaned text will appear here…",
+    cleanBtn: "✨ Clean", copyBtn: "📋 Copy result", copied: "✅ Copied", copyFail: "❌ Copy failed, please copy manually",
+    clearBtn: "🗑 Clear", optPunct: "Punctuation normalization", optStats: "Show cleaning stats",
+    footer: "Same cleaning rules as the Python CLI · 100% local, nothing uploaded",
+    stats: (s) => `🧹 Done: merged <b>${s.joins}</b> hard line breaks, removed <b>${s.blankLines}</b> blank lines, ` +
+      `converted <b>${s.punct}</b> punctuation marks, stripped <b>${s.zw}</b> invisible chars.`,
+  }
+};
+let lang = (typeof localStorage !== "undefined" && localStorage.getItem("tc-lang")) || "zh";
+if (!I18N[lang]) lang = "zh";
+
+/* ===== UI wiring (browser only) ===== */
+if (typeof document !== "undefined") {
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    in: $("in"), out: $("out"), inCount: $("inCount"), outCount: $("outCount"),
+    cleanBtn: $("cleanBtn"), copyBtn: $("copyBtn"), clearBtn: $("clearBtn"),
+    optPunct: $("optPunct"), optStats: $("optStats"), stats: $("stats"), langBtn: $("langBtn"),
+  };
+
+  function applyLang() {
+    const t = I18N[lang];
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const k = el.getAttribute("data-i18n");
+      if (typeof t[k] === "string") el.textContent = t[k];
+    });
+    document.querySelectorAll("[data-i18n-ph]").forEach((el) => {
+      const k = el.getAttribute("data-i18n-ph");
+      if (typeof t[k] === "string") el.placeholder = t[k];
+    });
+    els.langBtn.textContent = lang === "zh" ? "EN" : "中文";
+    document.title = t.title;
+    try { localStorage.setItem("tc-lang", lang); } catch (e) {}
+  }
+
+  function updateCounts() {
+    els.inCount.textContent = els.in.value.length;
+    els.outCount.textContent = els.out.value.length;
+  }
+
+  function doClean() {
+    const stats = { joins: 0, blankLines: 0, punct: 0, zw: 0 };
+    const result = cleanText(els.in.value, els.optPunct.checked, stats);
+    els.out.value = result;
+    els.copyBtn.disabled = !result;
+    if (els.optStats.checked && els.in.value) {
+      els.stats.innerHTML = I18N[lang].stats(stats);
+      els.stats.classList.add("show");
+    } else {
+      els.stats.classList.remove("show");
+    }
+    updateCounts();
+  }
+
+  async function doCopy() {
+    const t = I18N[lang];
+    try {
+      await navigator.clipboard.writeText(els.out.value);
+      els.copyBtn.textContent = t.copied;
+    } catch (e) {
+      els.out.select();
+      try { document.execCommand("copy"); els.copyBtn.textContent = t.copied; }
+      catch (e2) { els.copyBtn.textContent = t.copyFail; }
+    }
+    setTimeout(() => { els.copyBtn.textContent = t.copyBtn; }, 1500);
+  }
+
+  els.cleanBtn.addEventListener("click", doClean);
+  els.copyBtn.addEventListener("click", doCopy);
+  els.clearBtn.addEventListener("click", () => {
+    els.in.value = ""; els.out.value = "";
+    els.copyBtn.disabled = true;
+    els.stats.classList.remove("show");
+    updateCounts(); els.in.focus();
+  });
+  els.in.addEventListener("input", updateCounts);
+  els.langBtn.addEventListener("click", () => {
+    lang = lang === "zh" ? "en" : "zh";
+    applyLang();
+  });
+
+  applyLang();
+  updateCounts();
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
+}
+</script>
+</body>
+</html>
